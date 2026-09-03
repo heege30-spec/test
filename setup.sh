@@ -26,6 +26,16 @@
 #   Pillow + numpy thuần — 2 thư viện này cài qua pkg, KHÔNG cần opencv.
 # ============================================================
 
+# - Script này có vài chỗ hỏi tương tác (read -p) — ví dụ nhập API key, pair
+#   ADB. Khi chạy qua "curl ... | bash" (pipe), stdin của bash bị CHÍNH nội
+#   dung script chiếm dụng, nên "read" mặc định sẽ đọc NHẦM các dòng lệnh
+#   phía sau của chính file này thay vì đọc bàn phím -> trả về giá trị rác
+#   (đã từng xảy ra thực tế: key bị lưu thành chuỗi "echo \"\""). Script đã
+#   được sửa để mọi "read" đọc thẳng từ "/dev/tty" (thiết bị bàn phím thật)
+#   thay vì từ stdin, tránh lặp lại lỗi này. Nếu môi trường nào đó không có
+#   /dev/tty, các dòng "read ... < /dev/tty" sẽ báo lỗi rõ ràng thay vì âm
+#   thầm lưu giá trị sai — lúc đó hãy tải file về và chạy "bash setup.sh"
+#   trực tiếp (không qua pipe) thay vì "curl | bash".
 set -e
 
 echo "======================================================"
@@ -90,9 +100,9 @@ echo "======================================================"
 echo "Key sẽ được lưu vào \$HOME/config.json — agent.py tự đọc file này,"
 echo "bạn KHÔNG cần sửa trực tiếp vào code."
 echo "(Key gõ vào đây sẽ KHÔNG hiện lên màn hình — tránh lộ qua ảnh chụp màn hình.)"
-read -s -p "Nhập Gemini API key (để trống nếu không dùng Gemini): " INPUT_GEMINI_KEY
+read -s -p "Nhập Gemini API key (để trống nếu không dùng Gemini): " INPUT_GEMINI_KEY < /dev/tty
 echo ""
-read -s -p "Nhập Qwen API key (để trống nếu không dùng Qwen): " INPUT_QWEN_KEY
+read -s -p "Nhập Qwen API key (để trống nếu không dùng Qwen): " INPUT_QWEN_KEY < /dev/tty
 echo ""
 
 python3 - "$INPUT_GEMINI_KEY" "$INPUT_QWEN_KEY" "$HOME/config.json" <<'PYEOF'
@@ -131,14 +141,14 @@ echo "2. Vào Cài đặt > Hệ thống > Tùy chọn nhà phát triển > bậ
 echo "   'Gỡ lỗi qua mạng không dây' (Wireless debugging)."
 echo "3. Bấm 'Ghép nối thiết bị bằng mã ghép nối' -> ghi lại IP:PORT và mã 6 số."
 echo ""
-read -p "Nhập IP:PORT để pair (ví dụ 192.168.1.5:39251), để trống nếu đã pair rồi: " PAIR_ADDR
+read -p "Nhập IP:PORT để pair (ví dụ 192.168.1.5:39251), để trống nếu đã pair rồi: " PAIR_ADDR < /dev/tty
 
 if [ -n "$PAIR_ADDR" ]; then
     adb pair "$PAIR_ADDR"
 fi
 
 echo ""
-read -p "Nhập IP:PORT để kết nối chính (ở màn hình Wireless debugging chính): " CONNECT_ADDR
+read -p "Nhập IP:PORT để kết nối chính (ở màn hình Wireless debugging chính): " CONNECT_ADDR < /dev/tty
 
 if [ -n "$CONNECT_ADDR" ]; then
     adb connect "$CONNECT_ADDR"
@@ -160,7 +170,7 @@ echo ""
 echo "======================================================"
 echo " BƯỚC 5 (tùy chọn): Lên lịch chạy tự động 8h sáng"
 echo "======================================================"
-read -p "Bạn có muốn thiết lập cron chạy agent.py lúc 8h sáng mỗi ngày không? (y/n): " SETUP_CRON
+read -p "Bạn có muốn thiết lập cron chạy agent.py lúc 8h sáng mỗi ngày không? (y/n): " SETUP_CRON < /dev/tty
 
 if [ "$SETUP_CRON" = "y" ]; then
     CRON_LINE="0 8 * * * python $HOME/agent.py >> $HOME/agent_log.txt 2>&1"
